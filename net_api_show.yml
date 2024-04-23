@@ -1,0 +1,66 @@
+---
+- name: Manage Citrix ADC via NITRO API
+  hosts: localhost
+  gather_facts: no
+  vars:
+    adc_host: "netscaler.example.com"
+    adc_username: "nsroot"
+    adc_password: "nsroot"
+    target_partition: "customer_partition"
+    command_to_execute: "show lb vserver"
+
+  tasks:
+    - name: Login to Citrix ADC
+      uri:
+        url: "https://{{ adc_host }}/nitro/v1/config/login"
+        method: POST
+        body_format: json
+        body: {
+          "login": {
+            "username": "{{ adc_username }}",
+            "password": "{{ adc_password }}"
+          }
+        }
+        validate_certs: no
+        return_content: yes
+      register: login_response
+
+    - name: Set the session cookie
+      set_fact:
+        nitro_cookie: "{{ login_response.cookies['NITRO_AUTH_TOKEN'] }}"
+
+    - name: Switch partitions
+      uri:
+        url: "https://{{ adc_host }}/nitro/v1/config/nspartition?action=Switch"
+        method: POST
+        body_format: json
+        headers:
+          Cookie: "NITRO_AUTH_TOKEN={{ nitro_cookie }}"
+        body: {
+          "nspartition": {
+            "partitionname": "{{ target_partition }}"
+          }
+        }
+        validate_certs: no
+      register: switch_response
+
+    - name: Execute command in the partition
+      uri:
+        url: "https://{{ adc_host }}/nitro/v1/config/cli"
+        method: POST
+        body_format: json
+        headers:
+          Cookie: "NITRO_AUTH_TOKEN={{ nitro_cookie }}"
+        body: {
+          "params": {
+            "action": "run",
+            "command": "{{ command_to_execute }}"
+          }
+        }
+        validate_certs: no
+      register: command_response
+
+    - name: Print command output
+      debug:
+        msg: "{{ command_response.json }}"
+
