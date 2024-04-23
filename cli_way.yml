@@ -1,0 +1,21 @@
+---
+- name: Execute commands on Netscaler Load Balancer
+  hosts: netscaler
+  gather_facts: no
+  vars:
+    netscaler_username: your_username
+    netscaler_password: your_password
+    netscaler_host: your_netscaler_host
+  tasks:
+    - name: Execute command on Netscaler
+      delegate_to: localhost
+      expect:
+        command: "sshpass -p '{{ netscaler_password }}' ssh -o StrictHostKeyChecking=no {{ netscaler_username }}@{{ netscaler_host }} 'shell {{ command_to_execute }}'"
+        # Replace `{{ command_to_execute }}` with the command you want to execute on Netscaler.
+        # For example, to show the status of all virtual servers: `show lb vserver`
+        timeout: 30
+        echo: yes
+      register: command_output
+
+    - debug:
+        var: command_output.stdout_lines
